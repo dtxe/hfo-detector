@@ -1,4 +1,39 @@
-function [out, spindles] = ieeg_spindledetector(data, varargin)
+function [spindles_markers, spindles_prop] = ieeg_spindledetector(data, varargin)
+% IEEG_SPINDLEDETECTOR - Detect spindles
+% Detect spindles using algorithm from Dahal 2019 (doi: 10.1093/brain/awz269)
+%
+% spindles_markers = ieeg_spindledetector(data)
+% [spindles_markers, spindles_prop] = ieeg_spindledetector(data, channel, 'param', value, ...)
+%
+% Parameters:
+%   data - fieldtrip structure from ft_preprocessing
+%
+% Optional parameters, as MATLAB parameter-value pairs:
+%   filt_low - lower freq range bandpass in Hz
+%   filt_high - upper freq range bandpass in Hz
+%   filt_spindle - spindle range bandpass in Hz
+%
+%   dur_min - minimum duration
+%   dur_max - minimum duration
+%  
+%   threshold - frequency ratio threshold
+%
+%   channel - channel to analyze (compatible with fieldtrip cfg.channel; Default: 1)
+%
+%   downsample - compute frequency decomposition ever N samples
+%
+% Returns:
+%   spindles_markers - centroids of detected HFOs in samples
+%   spindles_prop - structure containing measurements on putative events of interest
+% 
+% 2020 Aug 1
+% Simeon Wong
+
+
+if ~exist('ft_freqanalysis', 'file')
+  addpath(fileparts(mfilename('fullpath')), 'fieldtrip')
+  ft_defaults
+end
 
 ip = inputParser;
 addParameter(ip, 'filt_low', [2 8]);
@@ -55,10 +90,10 @@ for kk = 1:length(rp_pp)
 end
 
 if nelem == 0 || ~any(isspindle)
-  out = [];
+  spindles_markers = [];
 else
-  out = {rp_pp(isspindle).Centroid;};
-  out = cellfun(@(x) round(x(1)), out) * ip.Results.downsample;
+  spindles_markers = {rp_pp(isspindle).Centroid;};
+  spindles_markers = cellfun(@(x) round(x(1)), spindles_markers) * ip.Results.downsample;
 end
-spindles = rp_pp(isspindle);
+spindles_prop = rp_pp(isspindle);
 

@@ -1,11 +1,37 @@
-function [out, spikes] = ieeg_spikedetector(data, varargin)
+function [spike_markers, spike_props] = ieeg_spikedetector(data, varargin)
+% IEEG_SPIKEDETECTOR - Detect interictal epileptiform discharges
+% Detect IEDs using algorithm from Dahal 2019 (doi: 10.1093/brain/awz269)
+%
+% spike_markers = ieeg_spikedetector(data)
+% [spike_markers, spike_props] = ieeg_spikedetector(data, channel, 'param', value, ...)
+%
+% Parameters:
+%   data - fieldtrip structure from ft_preprocessing
+%
+% Optional parameters, as MATLAB parameter-value pairs:
+%   freq - [low high] bandpass filter range in Hz
+%   zthresh - z-score threshold for detection
+%   mindur - minimum duration
+%   channel - channel to analyze (compatible with fieldtrip cfg.channel; Default: 1)
+%
+% Returns:
+%   spike_markers - centroids of detected HFOs in samples
+%   debug - structure containing measurements on putative events of interest
+% 
+% 2020 Aug 1
+% Simeon Wong
+
+
+if ~exist('ft_freqanalysis', 'file')
+  addpath(fileparts(mfilename('fullpath')), 'fieldtrip')
+  ft_defaults
+end
 
 ip = inputParser;
 addParameter(ip, 'filt', [25 80]);
 addParameter(ip, 'zthresh', 3);
 addParameter(ip, 'mindur', 0.001);
 addParameter(ip, 'channel', 1);
-% addParameter(ip, 'downsample', 1);   % no need to downsample for this code.
 
 parse(ip, varargin{:})
 
@@ -49,10 +75,10 @@ for kk = 1:length(rp_pp)
 end
 
 if nelem == 0 || ~any(isspike)
-  out = [];
+  spike_markers = [];
 else
-  out = {rp_pp(isspike).Centroid;};
-  out = cellfun(@(x) round(x(1)), out);  % * ip.Results.downsample;
+  spike_markers = {rp_pp(isspike).Centroid;};
+  spike_markers = cellfun(@(x) round(x(1)), spike_markers);  % * ip.Results.downsample;
 end
-spikes = rp_pp(isspike);
+spike_props = rp_pp(isspike);
 

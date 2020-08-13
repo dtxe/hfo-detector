@@ -1,18 +1,28 @@
-function [hfo_markers,tfrdat_out,debug] = ieeg_hfodetector(data, channel, varargin)
+function [hfo_markers,tfrdat_out,debug] = ieeg_hfodetector(data, varargin)
 % IEEG_HFODETECTOR - Detect HFOs
 % Detect HFOs in time-frequency space by defining characteristics of blobs
 %
 % hfo_markers = ieeg_hfodetector(data, channel)
-% hfo_markers = ieeg_hfodetector(data, channel, 'param', value, ...)
+% [hfo_markers, tfrdat_out, debug] = ieeg_hfodetector(data, channel, 'param', value, ...)
 %
 % Parameters:
 %   data - fieldtrip structure from ft_preprocessing
 %
 % Optional parameters, as MATLAB parameter-value pairs:
-%   foi - [low high] frequency range of interest in Hz
+%   channel - channel to analyze (compatible with fieldtrip cfg.channel)
+%             Default: 1
+%
+%   foi - frequency range of interest in Hz
+%         Default: [80 500]
+%
 %   thresh - power ratio threshold relative to background
+%            Default: 5.75
+%
 %   ncycles - minimum length of HFO event in number of cycles
-%   hfo_freq_width - [low high] contrain frequency bandwidth of the event
+%             Default: 4.75
+%
+%   hfo_freq_width - contrain frequency bandwidth of the event in Hz
+%                    Default: [20 150]
 %
 %   wavelet_width - number of cycles in Morlet wavelet
 %   downsample - compute the transform every n samples
@@ -26,9 +36,13 @@ function [hfo_markers,tfrdat_out,debug] = ieeg_hfodetector(data, channel, vararg
 % 2020 Aug 1
 % Simeon Wong
 
+if ~exist('ft_freqanalysis', 'file')
+  addpath(fileparts(mfilename('fullpath')), 'fieldtrip')
+  ft_defaults
+end
 
 ip = inputParser;
-addParameter(ip, 'foi', [80 400]);
+addParameter(ip, 'foi', [80 500]);
 addParameter(ip, 'lf_fthresh', []);
 addParameter(ip, 'thresh', 5.75);
 addParameter(ip, 'ncycles', 4.75);
@@ -42,13 +56,15 @@ addParameter(ip, 'hfo_min_freq_width', 20);
 addParameter(ip, 'downsample', 1);
 addParameter(ip, 'freqstep', 5);
 
+addParameter(ip, 'channel', 1);
+
 parse(ip, varargin{:});
 
 cfg = [];
 cfg.method = 'wavelet';
 cfg.output = 'pow';
 cfg.pad = 'nextpow2';
-cfg.channel = channel;
+cfg.channel = ip.Results.channel;
 cfg.foi = 2:ip.Results.freqstep:ip.Results.foi(2);
 cfg.width = ip.Results.wavelet_width;
 % cfg.gwidth = 5;
@@ -147,23 +163,14 @@ for kk = 1:nelem
     
     debug.hfo_freq_width(kk) = freqwidth;
     
-    if freqwidth > ip.Results.hfo_max_freq_width
+    if freqwidth < ip.Results.hfo_freq_width(1)
       ishfo(kk) = false;
     end
     
-    if freqwidth < ip.Results.hfo_min_freq_width
+    if freqwidth > ip.Results.hfo_freq_width(2)
       ishfo(kk) = false;
     end
   end
-  
-  
-  %   if ~isempty(ip.Results.hfo_max_freq_width) && ...  % is this parameter configured
-  %       ((spec.freq(floor(tfrprop(kk).BoundingBox(2) + tfrprop(kk).BoundingBox(4))) - ...
-  %       spec.freq(ceil(tfrprop(kk).BoundingBox(2)))) > ...
-  %       (ip.Results.hfo_freq_width))
-  %     debug.hfo_freq_width(kk) = true;
-  %     ishfo(kk) = false;
-  %   end
 end
 
 debug.ishfo = ishfo;
